@@ -1,0 +1,77 @@
+import logging
+import threading
+
+import httpx
+from httpx import Response
+
+
+class _RequestClient:
+    client: httpx.Client
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super(_RequestClient, cls).__new__(cls)
+                    try:
+                        cls._instance.init_client()
+                    except Exception as e:
+                        logging.error(f"Failed to initialize client: {str(e)}")
+        return cls._instance
+
+    def init_client(self):
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36",
+        }
+        self.client = httpx.Client(follow_redirects=True,
+                                   verify=False,
+                                   # proxy=proxies,
+                                   headers=headers,
+                                   timeout=10)
+
+    def get(self, url, **kwargs) -> Response:
+        try:
+            return self.client.get(url, **kwargs)
+        except Exception as e:
+            logging.error(f"Unexpected error during GET request to {url}: {str(e)}")
+            return Response(status_code=500)
+
+    def post(self, url, **kwargs) -> Response:
+        try:
+            return self.client.post(url, **kwargs)
+        except Exception as e:
+            logging.error(f"Unexpected error during POST request to {url}: {str(e)}")
+            return Response(status_code=500)
+
+
+def get_instance() -> _RequestClient:
+    return _RequestClient()
+
+
+def get_ck_val(key) -> str or None:
+    client = get_instance()
+    if client:
+        try:
+            cookies = client.client.cookies
+            for cookie in cookies.jar:
+                if cookie.name == key:
+                    return cookie.value
+        except Exception as e:
+            logging.error(f"Error getting cookie value: {str(e)}")
+    return None
+
+
+def get_cookies() -> list or None:
+    client = get_instance()
+    if client:
+        try:
+            cookie_list = []
+            cookies = client.client.cookies
+            for cookie in cookies.jar:
+                cookie_list.append((cookie.name, cookie.value))
+            return cookie_list
+        except Exception as e:
+            logging.error(f"Error getting cookies: {str(e)}")
+    return None

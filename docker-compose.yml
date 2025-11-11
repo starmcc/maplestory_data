@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  maple_app:
+    image: python:3.9-slim
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt && gunicorn --bind 0.0.0.0:5000 src.main:app"
+    environment:
+      - FLASK_ENV=production  # 生产环境（禁用调试）
+      - PYTHONUNBUFFERED=1    # 日志实时输出
+    restart: always
